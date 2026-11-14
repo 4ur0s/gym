@@ -1,0 +1,41 @@
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-text);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+
+.app { display: flex; flex-direction: column; height: 100%; }
+.screen {
+  flex: 1;
+  overflow-y: auto;
+  padding: calc(env(safe-area-inset-top) + 16px) 16px 24px;
+}
+.screen-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 28px;
+  margin: 0 0 16px;
+}
+.muted { color: var(--text-2); }
+.num { font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+
+.tabbar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 0.5px solid var(--separator);
+  background: var(--bg);
+  padding: 6px 0 calc(env(safe-area-inset-bottom) + 4px);
+}
+.tab {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  font-size: 10px; font-weight: 500; color: var(--text-2);
+  min-height: 44px;
+}
+.tab[aria-current='page'] { color: var(--accent); }

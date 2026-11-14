@@ -1,0 +1,28 @@
+:root {
+  /* Палитра «Вечер» */
+  --bg: #0e0f13;
+  --cell: #1a1c22;
+  --cell-raised: #24262e;
+  --separator: #2c2c2e;
+  --text: #f5f5f7;
+  --text-2: #8e8e93;
+
+  /* Группы мышц */
+  --g-chest: #ff8a7a;
+  --g-back: #7cc4fa;
+  --g-legs: #7ddbb4;
+  --g-delts: #ffb86b;
+  --g-arms: #b39dff;
+  --g-core: #f39fc9;
+
+  /* Сигналы */
+  --up: #7ddbb4;
+  --warn: #ffb86b;
+  --accent: #ff8a7a;
+
+  --font-display: 'Unbounded', system-ui, sans-serif;
+  --font-text: 'Montserrat', system-ui, sans-serif;
+
+  --radius-card: 14px;
+  --tabbar-h: 56px;
+}
