@@ -65,6 +65,17 @@ export async function finishWorkout(id: string) {
   })
 }
 
+export async function setSkipped(w: Workout, exerciseId: string, skip: boolean) {
+  await db.transaction('rw', db.workouts, db.sets, async () => {
+    const cur = new Set(w.skipped ?? [])
+    if (skip) {
+      cur.add(exerciseId)
+      await db.sets.where('workoutId').equals(w.id).filter((s) => s.exerciseId === exerciseId).modify({ done: false })
+    } else cur.delete(exerciseId)
+    await db.workouts.update(w.id, { skipped: [...cur] })
+  })
+}
+
 export async function deleteWorkout(id: string) {
   await db.transaction('rw', db.workouts, db.sets, async () => {
     await db.sets.where('workoutId').equals(id).delete()

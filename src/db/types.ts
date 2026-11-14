@@ -44,6 +44,7 @@ export interface Workout {
   finishedAt?: number
   status: 'active' | 'done'
   imported?: boolean
+  skipped?: string[] // exercise ids marked «не делал» during an active workout
 }
 
 export interface WorkSet {

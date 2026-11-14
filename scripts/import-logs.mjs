@@ -2,7 +2,6 @@
 // Usage: node scripts/import-logs.mjs [--names]   (--names prints unmatched exercise names)
 import fs from 'node:fs'
 import path from 'node:path'
-import crypto from 'node:crypto'
 
 const HEALTH = 'X:/SALE TOOLS/MY_BRAIN/health'
 const LOGS = path.join(HEALTH, 'logs')
@@ -58,7 +57,6 @@ const matchId = (name) => ALIASES.find(([re]) => re.test(name))?.[1]
 const num = (s) => Number(String(s).replace(',', '.'))
 const firstNum = (s) => num(String(s).split(/[–-]/)[0])
 const iso = (d, m) => `${YEAR}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-const uid = () => crypto.randomUUID()
 
 /** "присед 52.5×6 rir1" → { name, sets: [{weight, reps, rir}] } */
 function parseItem(raw) {
@@ -139,10 +137,10 @@ if (process.argv.includes('--names')) {
 // build backup
 const W = [], S = []
 for (const { date, tpl, items } of [...workouts.values()].sort((a, b) => a.date.localeCompare(b.date))) {
-  const id = uid()
+  const id = `imp-${date}-${tpl}`
   const startedAt = new Date(`${date}T18:00:00`).getTime()
   W.push({ id, date, templateId: tpl, templateName: tpl === 'A' ? 'Тренировка A' : 'Тренировка Б', startedAt, finishedAt: startedAt, status: 'done', imported: true })
-  items.forEach((it, order) => it.sets.forEach((s, i) => S.push({ id: uid(), workoutId: id, exerciseId: it.id, date, idx: order * 100 + i, weight: s.weight, reps: s.reps, rir: s.rir, done: true })))
+  items.forEach((it, order) => it.sets.forEach((s, i) => S.push({ id: `${id}-${order * 100 + i}`, workoutId: id, exerciseId: it.id, date, idx: order * 100 + i, weight: s.weight, reps: s.reps, rir: s.rir, done: true })))
 }
 
 // body: fasted weight mentions + known InBody / measurements from profile.md
@@ -150,6 +148,9 @@ const measurements = new Map()
 for (const file of fs.readdirSync(LOGS).filter((f) => f.endsWith('.md'))) {
   const text = fs.readFileSync(path.join(LOGS, file), 'utf8').replace(/\*\*/g, '')
   for (const m of text.matchAll(/(\d{2}(?:[.,]\d{1,2})?)\s*кг\s*натощак\s*\((\d{1,2})\.(\d{2})\)/g)) {
+    measurements.set(iso(m[2], m[3]), num(m[1]))
+  }
+  for (const m of text.matchAll(/Вес[^\n\d]*(\d{2}(?:[.,]\d{1,2})?)\s*кг\s*\((\d{1,2})\.(\d{2})\)/g)) {
     measurements.set(iso(m[2], m[3]), num(m[1]))
   }
 }
@@ -167,5 +168,13 @@ const backup = {
 }
 fs.mkdirSync('data', { recursive: true })
 fs.writeFileSync('data/history.json', JSON.stringify(backup))
+// only what came after the first import (17.10+), for a phone that already has the old file loaded
+const SINCE = '2026-10-17'
+const nw = W.filter((w) => w.date >= SINCE), nwIds = new Set(nw.map((w) => w.id))
+const ns = S.filter((s) => nwIds.has(s.workoutId)), nUsed = new Set(ns.map((s) => s.exerciseId))
+fs.writeFileSync('data/history-new.json', JSON.stringify({ ...backup, data: {
+  exercises: RETIRED.filter((e) => nUsed.has(e.id)), workouts: nw, sets: ns,
+  measurements: M.filter((m) => m.date >= SINCE), inbody: [] } }))
+console.log(`new since ${SINCE}: workouts ${nw.length}, sets ${ns.length}, measurements ${M.filter((m) => m.date >= SINCE).length}`)
 console.log(`workouts ${W.length}, sets ${S.length}, measurements ${M.length}, inbody ${IB.length}, unmatched ${unknown.size}`)
 console.log(`range ${W[0]?.date} … ${W[W.length - 1]?.date}`)

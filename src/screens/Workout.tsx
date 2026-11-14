@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { IconAdjustmentsHorizontal, IconCheck, IconPlayerPlay, IconPlus } from '@tabler/icons-react'
 import { db } from '../db/db'
 import { useAnalytics, type Analytics } from '../db/analytics'
-import { addSet, finishWorkout, deleteWorkout, nextTemplate, startWorkout } from '../db/queries'
+import { addSet, finishWorkout, deleteWorkout, nextTemplate, setSkipped, startWorkout } from '../db/queries'
 import { groupColor, type Exercise, type Template, type WorkSet, type Workout } from '../db/types'
 import { fmtLong, today } from '../logic/dates'
 import { fmtSet, progression, score } from '../logic/training'
@@ -95,11 +95,12 @@ function ActiveWorkout({ a, workout }: { a: Analytics; workout: Workout }) {
     return m
   }, [sets])
 
-  const firstUndone = groups.flat().find((id) => (byEx.get(id) ?? []).some((s) => !s.done))
+  const skipped = new Set(workout.skipped ?? [])
+  const firstUndone = groups.flat().find((id) => !skipped.has(id) && (byEx.get(id) ?? []).some((s) => !s.done))
   const current = openId ?? firstUndone
 
   const finish = async () => {
-    const undone = sets.filter((s) => !s.done).length
+    const undone = sets.filter((s) => !s.done && !skipped.has(s.exerciseId)).length
     if (undone && !confirm(`Не отмечено подходов: ${undone}. Они не сохранятся. Закончить?`)) return
     await finishWorkout(workout.id)
   }
@@ -118,6 +119,7 @@ function ActiveWorkout({ a, workout }: { a: Analytics; workout: Workout }) {
             if (!ex) return null
             return (
               <ExerciseBlock key={id} ex={ex} a={a} sets={byEx.get(id) ?? []} workoutId={workout.id}
+                skipped={skipped.has(id)} onSkip={(v) => { setSkipped(workout, id, v); if (v) setOpenId(undefined) }}
                 open={current === id} onToggle={() => setOpenId(current === id ? '__none' : id)} />
             )
           })}
@@ -139,8 +141,9 @@ function buildGroups(t: Template | undefined, sets: WorkSet[]): string[][] {
   return groups
 }
 
-function ExerciseBlock({ ex, a, sets, workoutId, open, onToggle }: {
+function ExerciseBlock({ ex, a, sets, workoutId, open, onToggle, skipped, onSkip }: {
   ex: Exercise; a: Analytics; sets: WorkSet[]; workoutId: string; open: boolean; onToggle: () => void
+  skipped: boolean; onSkip: (skip: boolean) => void
 }) {
   const color = groupColor(ex.group)
   const prev = lastSets(a, ex.id)
@@ -160,7 +163,7 @@ function ExerciseBlock({ ex, a, sets, workoutId, open, onToggle }: {
   }
 
   return (
-    <div style={{ opacity: allDone && !open ? 0.55 : 1 }} className="ex-block">
+    <div style={{ opacity: (allDone || skipped) && !open ? 0.55 : 1 }} className="ex-block">
       <button className="ex-head" onClick={onToggle}>
         <span className="dot" style={{ background: color }} />
         <span className="row-main">
@@ -168,11 +171,18 @@ function ExerciseBlock({ ex, a, sets, workoutId, open, onToggle }: {
           <span className="small" style={{ color }}>{ex.muscle}</span>
           {open && <span className="small muted"> · {scheme(ex)}</span>}
         </span>
-        {allDone
+        {skipped
+          ? <span className="small muted">не делал</span>
+          : allDone
           ? <IconCheck size={18} color="var(--up)" aria-label="Готово" />
           : <span className="num small" style={{ fontWeight: 700 }}>{doneSets.length} / {sets.length}</span>}
       </button>
-      {open && (
+      {open && skipped && (
+        <div className="ex-open">
+          <button className="link small" onClick={() => onSkip(false)}>Вернуть упражнение</button>
+        </div>
+      )}
+      {open && !skipped && (
         <div className="ex-open">
           {ex.note && <p className="ex-note">{ex.note}</p>}
           <div className="set-grid set-head"><span /><span>было</span><span>{ex.unit === 'kg' ? 'кг' : '+кг'}</span><span>{ex.unit === 'sec' ? 'сек' : 'повт'}</span><span>RIR</span><span /></div>
@@ -195,9 +205,12 @@ function ExerciseBlock({ ex, a, sets, workoutId, open, onToggle }: {
               </div>
             )
           })}
-          <button className="link small" style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={() => addSet(workoutId, ex.id)}>
-            <IconPlus size={14} aria-hidden /> подход
-          </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
+            <button className="link small" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }} onClick={() => addSet(workoutId, ex.id)}>
+              <IconPlus size={14} aria-hidden /> подход
+            </button>
+            {doneSets.length === 0 && <button className="small muted" style={{ fontWeight: 600 }} onClick={() => onSkip(true)}>Не делал</button>}
+          </div>
           {hint && <p className={`hint${hint.up ? ' up' : ' muted'}`}>{hint.text}</p>}
         </div>
       )}
