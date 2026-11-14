@@ -9,7 +9,7 @@ const TABS = [
   { id: 'history', label: 'История', Icon: IconCalendar },
 ] as const
 
-export function TabBar({ active, onChange }: { active: Tab; onChange: (tab: Tab) => void }) {
+export function TabBar({ active, onChange, timer }: { active: Tab; onChange: (tab: Tab) => void; timer?: string }) {
   return (
     <nav className="tabbar">
       {TABS.map(({ id, label, Icon }) => (
@@ -17,10 +17,11 @@ export function TabBar({ active, onChange }: { active: Tab; onChange: (tab: Tab)
           key={id}
           className="tab"
           aria-current={active === id ? 'page' : undefined}
+          style={id === 'workout' && timer ? { color: 'var(--accent)' } : undefined}
           onClick={() => onChange(id)}
         >
           <Icon size={26} stroke={1.6} aria-hidden />
-          {label}
+          {id === 'workout' && timer ? <span className="num">{timer}</span> : label}
         </button>
       ))}
     </nav>
